@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d4f60">
+<meta name="apple-mobile-web-app-title" content="Letter Drill">
+<meta name="description" content="Memorise the Arabic letters in short daily bursts.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Letter Drill</title>
+<style>
+@font-face { font-family: 'Amiri Quran'; src: url('fonts/AmiriQuran.woff') format('woff'); font-display: block; }
+@font-face { font-family: 'Amiri'; src: url('fonts/Amiri.woff') format('woff'); }
+@font-face { font-family: 'EB Garamond'; src: url('fonts/EBGaramond.woff') format('woff'); font-weight: 400 800; }
+@font-face { font-family: 'Nunito Sans'; src: url('fonts/NunitoSans.woff') format('woff'); font-weight: 200 1000; }
+:root {
+  --bg: #0d4f60; --bg2: #0a3d4b; --card: #fffaf1; --card2: #f6ecdb; --ink: #2b2420; --soft: #6b5f55; --muted: #9a8d80;
+  --line: #e8dac4; --red: #b4232c; --red-soft: #f8e2de; --ok: #2f7a4a; --ok-soft: #e0f0e4; --gold: #c99a3e;
+  --on-bg: #e8f3f5; --on-bg-soft: #9fc3cc;
+  --quran: 'Amiri Quran', 'Amiri', 'Geeza Pro', serif; --arabic: 'Amiri', 'Geeza Pro', serif;
+  --serif: 'EB Garamond', Georgia, serif; --sans: 'Nunito Sans', -apple-system, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0b1a1e; --bg2: #08131600; --card: #1f1b17; --card2: #29231d; --ink: #f1e7d7; --soft: #cbbfae; --muted: #8f8273;
+    --line: #3a3229; --red: #f0716a; --red-soft: #3a2220; --ok: #7cc795; --ok-soft: #1c3223; --on-bg: #dfeef1; --on-bg-soft: #7fa5ae; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: radial-gradient(ellipse at 50% -10%, var(--bg) 0%, var(--bg2) 100%) fixed, var(--bg2); background-color: var(--bg);
+  color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+  user-select: none; -webkit-user-select: none; overflow: hidden; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.ar { font-family: var(--quran); direction: rtl; unicode-bidi: isolate; }
+.ar2 { font-family: var(--arabic); direction: rtl; unicode-bidi: isolate; }
+
+.app { height: 100%; display: flex; flex-direction: column; align-items: center; padding: 18px 20px 16px; }
+.top { width: 100%; max-width: 620px; display: flex; align-items: center; justify-content: space-between; color: var(--on-bg); min-height: 34px; }
+.top .brand { font-family: var(--serif); font-size: 19px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.top .brand .ar { color: #ffd9a8; font-size: 22px; }
+.top .stat { font-size: 13px; font-weight: 800; color: var(--on-bg-soft); display: flex; gap: 14px; }
+.top .stat b { color: var(--on-bg); }
+.link { background: none; border: 0; color: var(--on-bg-soft); font-size: 13px; font-weight: 800; padding: 4px 6px; border-radius: 6px; }
+.link:hover { color: var(--on-bg); }
+
+.bar { width: 100%; max-width: 620px; height: 6px; border-radius: 9px; background: rgba(255,255,255,.14); overflow: hidden; margin: 10px 0 14px; }
+.bar i { display: block; height: 100%; background: #ffd9a8; border-radius: 9px; transition: width .35s; }
+
+.card { width: 100%; max-width: 620px; flex: 1; min-height: 0; background: var(--card); border-radius: 26px;
+  box-shadow: 0 2px 3px rgba(0,0,0,.08), 0 24px 60px rgba(0,0,0,.28); padding: 22px 28px 24px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+.card.flash-ok { animation: okf .5s; } .card.shake { animation: shake .35s; }
+@keyframes okf { 0% { box-shadow: 0 0 0 0 rgba(47,122,74,.6), 0 24px 60px rgba(0,0,0,.28); } 100% { box-shadow: 0 0 0 18px rgba(47,122,74,0), 0 24px 60px rgba(0,0,0,.28); } }
+@keyframes shake { 25% { transform: translateX(-6px); } 50% { transform: translateX(6px); } 75% { transform: translateX(-3px); } }
+.in { animation: cardIn .28s cubic-bezier(.2,.8,.2,1); }
+@keyframes cardIn { from { opacity: 0; transform: translateY(8px) scale(.99); } }
+@media (prefers-reduced-motion: reduce) { .in, .card.flash-ok, .card.shake { animation: none; } }
+
+.kicker { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 900; color: var(--red); }
+h1 { font-family: var(--serif); font-weight: 600; font-size: 34px; line-height: 1.1; margin: 2px 0 6px; }
+.soft { color: var(--soft); } .muted { color: var(--muted); font-size: 13px; }
+.center { text-align: center; }
+.grow { flex: 1; min-height: 0; }
+
+.big { font-family: var(--quran); color: var(--red); text-align: center; line-height: 1.6; direction: rtl; }
+.prompt { text-align: center; font-family: var(--serif); font-size: 21px; color: var(--soft); margin-top: 2px; }
+.showbox { flex: 1; min-height: 120px; display: grid; place-items: center; }
+.showbox .big { font-size: min(150px, 24vh); }
+.showbox .txt { font-family: var(--serif); font-size: 34px; font-weight: 600; text-align: center; line-height: 1.2; }
+.showbox .txt small { display: block; font-family: var(--sans); font-size: 15px; color: var(--soft); font-weight: 700; margin-top: 6px; }
+
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opt { position: relative; border: 1.5px solid var(--line); background: var(--card2); border-radius: 16px; min-height: 64px; padding: 10px 14px 10px 38px;
+  font-weight: 800; font-size: 16.5px; text-align: left; line-height: 1.25; transition: border-color .12s, background .12s; }
+.opt .k { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 6px; background: var(--card);
+  border: 1px solid var(--line); font-size: 11px; font-weight: 900; color: var(--muted); display: grid; place-items: center; }
+.opt small { display: block; font-weight: 600; color: var(--soft); font-size: 13px; }
+.opt.letter { font-family: var(--quran); font-size: 44px; font-weight: 400; text-align: center; padding: 0 10px; line-height: 1.55; color: var(--ink); }
+.opt:hover:not(:disabled) { border-color: var(--red); }
+.opt:disabled { cursor: default; }
+.opt.right { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.opt.right.letter { color: var(--ok); }
+.opt.wrong { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+.opt.dim { opacity: .45; }
+
+#after { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+#after:empty { display: none; }
+.reveal { display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; align-items: center; background: var(--card2); border-radius: 18px; padding: 8px 18px 12px; margin: 10px 0 14px; }
+.reveal .big { font-size: 78px; line-height: 1.55; }
+.reveal b.nm { font-family: var(--serif); font-size: 26px; font-weight: 600; display: block; line-height: 1.1; }
+.reveal .snd { color: var(--ok); font-weight: 900; font-size: 16px; }
+.reveal.bad .snd { color: var(--red); }
+.reveal .tip { color: var(--soft); font-size: 14px; line-height: 1.4; margin-top: 2px; }
+
+.btn { border: 0; background: var(--red); color: #fff; border-radius: 14px; padding: 13px 22px; font-weight: 900; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+.btn:hover { filter: brightness(1.07); }
+.btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+.btn kbd { font-family: var(--sans); font-size: 11px; font-weight: 900; background: rgba(255,255,255,.22); border-radius: 5px; padding: 1px 6px; }
+.btn.ghost kbd { background: var(--card2); color: var(--muted); }
+.row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* meet card */
+.meet { display: grid; grid-template-columns: 210px 1fr; gap: 22px; align-items: center; flex: 1; min-height: 0; }
+.meet .glyph { background: var(--card2); border-radius: 22px; height: 220px; display: grid; place-items: center; }
+.meet .glyph .big { font-size: 140px; }
+.meet b.nm { font-family: var(--serif); font-size: 38px; font-weight: 600; line-height: 1; }
+.meet .arn { font-size: 26px; color: var(--soft); margin-left: 8px; }
+.meet .snd { margin-top: 10px; font-size: 20px; font-weight: 900; color: var(--ok); }
+.meet .tip { color: var(--soft); margin-top: 8px; font-size: 15px; }
+.meet .alike { margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+.meet .alike .ar { font-size: 26px; color: var(--ink); margin: 0 4px; }
+.tag { display: inline-block; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; padding: 2px 8px; border-radius: 6px; background: var(--ink); color: var(--card); vertical-align: middle; margin-left: 8px; }
+
+/* home */
+.home { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.today { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0 16px; }
+.tile { background: var(--card2); border-radius: 16px; padding: 10px 14px; }
+.tile b { display: block; font-family: var(--serif); font-size: 30px; line-height: 1.1; }
+.tile span { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.grid29 { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px; direction: rtl; }
+.cell { height: 54px; border-radius: 11px; display: grid; place-items: center; font-family: var(--quran); font-size: 26px; line-height: 1.6; border: 1.5px solid var(--line); background: var(--card2); position: relative; }
+.cell[data-lvl="0"] { color: var(--muted); opacity: .45; border-style: dashed; background: transparent; }
+.cell[data-lvl="1"] { border-color: #e9b8b0; }
+.cell[data-lvl="2"] { border-color: #e8c98c; }
+.cell[data-lvl="3"] { border-color: #b6d4a8; }
+.cell[data-lvl="4"] { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.cell.due::after { content: ''; position: absolute; top: 5px; left: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 8px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 1.5px solid; margin-right: 5px; vertical-align: -1px; }
+
+/* reference */
+.ref { overflow-y: auto; flex: 1; min-height: 0; margin: 6px -10px 0; padding: 0 10px; }
+.refrow { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.refrow .ar { font-size: 36px; line-height: 1.6; text-align: center; color: var(--red); }
+.refrow b { font-family: var(--serif); font-size: 20px; font-weight: 600; }
+.refrow .s { font-weight: 800; color: var(--ok); font-size: 14px; }
+.refrow .t { font-size: 13px; color: var(--soft); }
+.refrow.locked { opacity: .45; }
+
+.foot { color: var(--on-bg-soft); font-size: 12px; margin-top: 10px; text-align: center; min-height: 18px; }
+.foot kbd { font-family: var(--sans); background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; font-weight: 800; }
+/* ---------- phone ---------- */
+html { -webkit-text-size-adjust: 100%; }
+body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.app { padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+@media (hover: none) {
+  kbd, .opt .k { display: none !important; }
+  .opt { padding-left: 14px; }
+  .foot.keys { visibility: hidden; }
+  .opt:hover:not(:disabled) { border-color: var(--line); }
+  .opt:active:not(:disabled) { transform: scale(.98); }
+}
+@media (max-width: 560px) {
+  .top .brand { font-size: 17px; } .top .brand .ar { font-size: 19px; }
+  .top .stat { font-size: 12px; gap: 10px; }
+  .card { padding: 16px 16px 18px; border-radius: 22px; }
+  h1 { font-size: 26px; }
+  .today { gap: 8px; margin: 12px 0 12px; } .tile { padding: 8px 10px; } .tile b { font-size: 24px; } .tile span { font-size: 10.5px; }
+  .grid29 { grid-template-columns: repeat(6, 1fr); gap: 5px; } .cell { height: 46px; font-size: 24px; }
+  .legend { gap: 8px; font-size: 11px; }
+  .opts.texts { grid-template-columns: 1fr; gap: 8px; }
+  .opts.texts .opt { min-height: 52px; font-size: 15.5px; }
+  .opt.letter { font-size: 40px; min-height: 72px; }
+  .meet { grid-template-columns: 1fr; gap: 10px; align-content: center; }
+  .meet .glyph { height: 170px; } .meet .glyph .big { font-size: 120px; }
+  .meet b.nm { font-size: 32px; } .meet .snd { font-size: 18px; margin-top: 6px; }
+  .reveal .big { font-size: 64px; } .reveal b.nm { font-size: 22px; }
+  .btn { padding: 14px 18px; } .row .btn { flex: 1; min-width: 140px; }
+  .refrow { grid-template-columns: 50px 1fr; }
+}
+@media (max-height: 640px) { .meet .glyph { height: 170px; } .meet .glyph .big { font-size: 110px; } .opt { min-height: 54px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><div class="brand"><span class="ar">ح ر و ف</span>Letter Drill</div><div class="stat" id="topstat"></div></div>
+  <div class="bar" id="bar" style="visibility:hidden"><i id="barfill"></i></div>
+  <div class="card" id="card"></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+(() => {
+'use strict';
+
+/* ---------- the 29 letters, in the order the PDF teaches them ---------- */
+const LETTERS = [
+  // Lesson 2 — lips
+  { ch:'ب', name:'Bā',  say:'Baa',  ar:'بَاء', sound:'b — as in “bat”', tip:'One dot underneath.' },
+  { ch:'ف', name:'Fā',  say:'Faa',  ar:'فَاء', sound:'f — as in “fan”', tip:'One dot on top. (Qāf has two.)' },
+  { ch:'م', name:'Mīm', say:'Meem', ar:'مِيم', sound:'m — as in “moon”', tip:'A small round head with a tail going down.' },
+  { ch:'و', name:'Wāw', say:'Waaw', ar:'وَاو', sound:'w — as in “wet”', tip:'Like a comma. Never joins to the letter after it.' },
+  // Lesson 3
+  { ch:'ر', name:'Rā',  say:'Raa',  ar:'رَاء', sound:'r — rolled, as in Scottish “r”', tip:'Tap the tongue once. Looks like zāy with no dot.' },
+  { ch:'ل', name:'Lām', say:'Laam', ar:'لَام', sound:'l — as in “lamp”', tip:'A tall stick with a hook at the bottom.' },
+  { ch:'ن', name:'Nūn', say:'Noon', ar:'نُون', sound:'n — as in “noon”', tip:'A deep bowl with one dot on top.' },
+  // Lesson 4
+  { ch:'ج', name:'Jīm', say:'Jeem', ar:'جِيم', sound:'j — as in “jam”', tip:'One dot inside the curve.' },
+  { ch:'ش', name:'Shīn',say:'Sheen',ar:'شِين', sound:'sh — as in “ship”', tip:'Three teeth with three dots.' },
+  { ch:'ي', name:'Yā',  say:'Yaa',  ar:'يَاء', sound:'y — as in “yes”', tip:'Two dots underneath.' },
+  // Lesson 5
+  { ch:'ت', name:'Tā',  say:'Taa',  ar:'تَاء', sound:'t — soft, tongue on the back of the top teeth', tip:'Two dots on top.' },
+  { ch:'د', name:'Dāl', say:'Daal', ar:'دَال', sound:'d — soft, tongue on the back of the top teeth', tip:'A small corner shape. No dot (dhāl has one).' },
+  { ch:'ط', name:'Ṭā',  say:'Ṭaa',  ar:'طَاء', sound:'ṭ — a heavy, deep “t”', heavy:true, tip:'A loop with a tall stick. No dot (ẓā has one).' },
+  // Lesson 7
+  { ch:'ك', name:'Kāf', say:'Kaaf', ar:'كَاف', sound:'k — as in “kite”', tip:'Tall with a little mark inside.' },
+  { ch:'ق', name:'Qāf', say:'Qaaf', ar:'قَاف', sound:'q — a deep “k” from the back of the throat', heavy:true, tip:'Two dots on top, deeper bowl than fā.' },
+  { ch:'ض', name:'Ḍād', say:'Ḍaad', ar:'ضَاد', sound:'ḍ — a heavy, deep “d”', heavy:true, tip:'A loop and bowl with one dot. (Ṣād has none.)' },
+  // Lessons 9–10
+  { ch:'ا', name:'Alif',say:'Alif', ar:'أَلِف', sound:'no sound of its own — carries a vowel / long “aa”', tip:'A single straight line.' },
+  { ch:'ء', name:'Hamzah',say:'Hamzah',ar:'هَمْزَة', sound:'ʾ — a catch in the throat, as in “uh-oh”', tip:'A small hook. Often sits on alif: أ' },
+  { ch:'ح', name:'Ḥā',  say:'Ḥaa',  ar:'حَاء', sound:'ḥ — a strong breathy “h” from the middle of the throat', throat:true, tip:'Like fogging a mirror. No dots (jīm has one inside).' },
+  { ch:'ع', name:'ʿAyn',say:'ʿAyn', ar:'عَيْن', sound:'ʿ — a squeezed sound from the middle of the throat', throat:true, tip:'No English match. No dot (ghayn has one).' },
+  // Lessons 12–13
+  { ch:'س', name:'Sīn', say:'Seen', ar:'سِين', sound:'s — as in “sun”', tip:'Three teeth, no dots.' },
+  { ch:'ز', name:'Zāy', say:'Zaay', ar:'زَاي', sound:'z — as in “zoo”', tip:'Rā with one dot.' },
+  { ch:'ص', name:'Ṣād', say:'Ṣaad', ar:'صَاد', sound:'ṣ — a heavy, deep “s”', heavy:true, tip:'A loop and a bowl, no dot.' },
+  // Lessons 15–17
+  { ch:'ث', name:'Thā', say:'Thaa', ar:'ثَاء', sound:'th — as in “think”', tip:'Three dots on top.' },
+  { ch:'ذ', name:'Dhāl',say:'Dhaal',ar:'ذَال', sound:'dh — “th” as in “this”', tip:'Dāl with one dot.' },
+  { ch:'ظ', name:'Ẓā',  say:'Ẓaa',  ar:'ظَاء', sound:'ẓ — a heavy “th” as in “this”', heavy:true, tip:'Ṭā with one dot.' },
+  // Lessons 19–20
+  { ch:'خ', name:'Khā', say:'Khaa', ar:'خَاء', sound:'kh — as in Scottish “loch”', heavy:true, tip:'Ḥā with a dot on top.' },
+  { ch:'ه', name:'Hā',  say:'Haa',  ar:'هَاء', sound:'h — as in “hat”', tip:'A round loop. Always pronounce it.' },
+  { ch:'غ', name:'Ghayn',say:'Ghayn',ar:'غَيْن', sound:'gh — like gargling, or the French “r”', heavy:true, tip:'ʿAyn with a dot on top.' },
+];
+const BY = Object.fromEntries(LETTERS.map(l => [l.ch, l]));
+const ALPHA = 'ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن و ه ء ي'.split(' ');
+/* look-alike families — used as tricky wrong answers */
+const FAMILIES = [['ب','ت','ث','ن','ي'],['ج','ح','خ'],['د','ذ'],['ر','ز'],['س','ش'],['ص','ض'],['ط','ظ'],['ع','غ'],['ف','ق'],['ك','ل'],['ا','ء'],['ه','و','م']];
+const alikes = ch => (FAMILIES.find(f => f.includes(ch)) || []).filter(c => c !== ch);
+
+/* ---------- spaced-repetition settings ---------- */
+const MIN = 60 * 1000;
+const INTERVAL = [0, 10, 60, 240, 1440, 4320, 10080, 20160];   // minutes after reaching box n
+const LEARNT_BOX = 4;            // box 4+ = memorised
+const BURST = 10;                // questions per burst
+
+/* ---------- state & saving ---------- */
+const NATIVE = window.__NATIVE__ || null;
+const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.native;
+const IOS = !!(NATIVE && NATIVE.platform === 'ios');
+const CAN_QUIT = !!bridge && !IOS;
+const haptic = kind => { if (bridge && IOS) bridge.postMessage({ action: 'haptic', kind }); };
+let S = { cards: {}, intro: [], days: {} };
+try { const raw = (NATIVE && NATIVE.state) || localStorage.getItem('letter-drill'); if (raw) Object.assign(S, JSON.parse(raw)); } catch (e) {}
+function save() {
+  const s = JSON.stringify(S);
+  if (bridge) bridge.postMessage({ action: 'save', state: s });
+  try { localStorage.setItem('letter-drill', s); } catch (e) {}
+}
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function streak() {
+  let n = 0; const d = new Date();
+  if (!S.days[dayKey(d)]) d.setDate(d.getDate() - 1);   // today not done yet doesn't break the streak
+  while (S.days[dayKey(d)]) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+const box = ch => (S.cards[ch] ? S.cards[ch].box : 0);
+const isDue = ch => S.cards[ch] && S.cards[ch].due <= Date.now();
+const learntCount = () => S.intro.filter(c => box(c) >= LEARNT_BOX).length;
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const card = $('#card');
+function paint(html, cls = '') { card.className = 'card in ' + cls; card.innerHTML = html; }
+function foot(html) { const f = $('#foot'); f.innerHTML = html; f.classList.toggle('keys', /<kbd>/.test(html)); }
+function topStat() {
+  $('#topstat').innerHTML = `<span>🔥 <b>${streak()}</b> day${streak() === 1 ? '' : 's'}</span><span><b>${learntCount()}</b>/29 learnt</span>`;
+}
+function whenNext() {
+  const dues = S.intro.map(c => S.cards[c].due).filter(Boolean);
+  if (!dues.length) return null;
+  const m = Math.min(...dues) - Date.now();
+  if (m <= 0) return 'now';
+  const mins = Math.round(m / MIN);
+  if (mins < 60) return `in ${Math.max(1, mins)} min`;
+  const h = Math.round(mins / 60);
+  return h < 24 ? `in about ${h} hour${h > 1 ? 's' : ''}` : `in ${Math.round(h / 24)} day${h >= 36 ? 's' : ''}`;
+}
+
+/* ---------- home screen ---------- */
+let mode = 'home';
+function home() {
+  mode = 'home'; $('#bar').style.visibility = 'hidden'; topStat();
+  const today = S.days[dayKey()] || 0;
+  const due = S.intro.filter(isDue).length;
+  const fresh = S.intro.length === 0;
+  const allIntro = S.intro.length >= LETTERS.length;
+  let msg;
+  if (fresh) msg = 'Each burst is about 10 quick questions — a minute or two. Do a burst, close the app, and come back a few times through the day. You’ll start with the four letters the book begins with.';
+  else if (due) msg = `<b>${due} letter${due > 1 ? 's are' : ' is'} ready for review.</b> ${!allIntro ? 'New letters are added once the ones you have are settling in.' : ''}`;
+  else msg = `Nothing is due yet — next review ${whenNext()}. You can still do an extra burst to practise${allIntro ? '' : ' or meet new letters'}.`;
+  paint(`<div class="home">
+    <div class="kicker">${fresh ? 'Welcome' : today ? 'Keep it going' : 'Today'}</div>
+    <h1>${fresh ? 'Memorise the Arabic letters' : today ? `${today} burst${today > 1 ? 's' : ''} done today` : 'Ready for a quick burst?'}</h1>
+    <p class="soft" style="margin:0">${msg}</p>
+    <div class="today">
+      <div class="tile"><b>${today}</b><span>bursts today</span></div>
+      <div class="tile"><b>${S.intro.length}</b><span>letters met</span></div>
+      <div class="tile"><b>${learntCount()}</b><span>memorised</span></div>
+    </div>
+    <div class="grow" style="overflow:auto">
+      <div class="grid29">${ALPHA.map(c => { const b = box(c); const lvl = !S.cards[c] ? 0 : b >= LEARNT_BOX ? 4 : Math.min(3, b);
+        return `<div class="cell ${isDue(c) ? 'due' : ''}" data-lvl="${lvl}" title="${BY[c].name}">${c}</div>`; }).join('')}</div>
+      <div class="legend"><span><i style="border-color:var(--line);border-style:dashed"></i>not met yet</span><span><i style="border-color:#e9b8b0"></i>new</span><span><i style="border-color:#e8c98c"></i>getting there</span><span><i style="border-color:#b6d4a8"></i>nearly</span><span><i style="border-color:var(--ok);background:var(--ok-soft)"></i>memorised</span><span><i style="border-color:var(--red);background:var(--red);border-radius:50%"></i>due</span></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="go">Start burst <kbd>↵</kbd></button>
+      <button class="btn ghost" id="ref">All letters <kbd>A</kbd></button>
+    </div></div>`);
+  $('#go').onclick = startBurst; $('#ref').onclick = reference;
+  foot('Short bursts, several times a day, beat one long session.');
+}
+
+/* ---------- reference list ---------- */
+function reference() {
+  mode = 'ref';
+  paint(`<div style="display:flex;justify-content:space-between;align-items:center"><div><div class="kicker">Reference</div><h1 style="margin-bottom:0">All 29 letters</h1></div><button class="btn ghost" id="back">Back <kbd>Esc</kbd></button></div>
+    <p class="muted" style="margin:4px 0 0">In alphabet order. Faded letters haven’t come up in your bursts yet.</p>
+    <div class="ref">${ALPHA.map(c => { const l = BY[c]; return `<div class="refrow ${S.cards[c] ? '' : 'locked'}"><div class="ar">${c}</div>
+      <div><b>${l.name}</b> <span class="ar2 muted" style="font-size:17px">${l.ar}</span> <span class="muted">· say “${l.say}”</span>${l.heavy ? '<span class="tag">heavy</span>' : ''}<div class="s">${esc(l.sound)}</div><div class="t">${esc(l.tip)}</div></div></div>`; }).join('')}</div>`);
+  $('#back').onclick = home;
+  foot('');
+}
+
+/* ---------- building a burst ---------- */
+let Q = [], qi = 0, score = 0, asked = 0, retried = new Set(), newThisBurst = [];
+function startBurst() {
+  mode = 'burst'; Q = []; qi = 0; score = 0; asked = 0; retried = new Set(); newThisBurst = [];
+  const now = Date.now();
+  // 1) introduce new letters when the current ones are settling in
+  const shaky = S.intro.filter(c => box(c) <= 2).length;
+  const remaining = LETTERS.filter(l => !S.intro.includes(l.ch));
+  let nNew = S.intro.length === 0 ? 4 : shaky < 4 ? 2 : shaky < 6 ? 1 : 0;
+  nNew = Math.min(nNew, remaining.length);
+  newThisBurst = remaining.slice(0, nNew).map(l => l.ch);
+  // 2) due letters first, most overdue first
+  const due = S.intro.filter(isDue).sort((a, b) => S.cards[a].due - S.cards[b].due);
+  // 3) build the queue
+  newThisBurst.forEach(c => { Q.push({ type: 'meet', ch: c }); });
+  newThisBurst.forEach(c => Q.push({ type: 'quiz', ch: c, isNew: true }));
+  due.forEach(c => { if (Q.filter(q => q.type === 'quiz').length < BURST) Q.push({ type: 'quiz', ch: c, counts: true }); });
+  // 4) top up with the weakest letters (extra practice)
+  const extra = shuffle(S.intro.filter(c => !due.includes(c))).sort((a, b) => box(a) - box(b));
+  for (const c of extra) { if (Q.filter(q => q.type === 'quiz').length >= BURST) break; Q.push({ type: 'quiz', ch: c }); }
+  // new letters get a second look later in the burst
+  newThisBurst.forEach(c => Q.push({ type: 'quiz', ch: c, isNew: true }));
+  // keep meets first, shuffle the rest but avoid the same letter twice in a row
+  const meets = Q.filter(q => q.type === 'meet');
+  let rest = shuffle(Q.filter(q => q.type === 'quiz'));
+  for (let i = 1; i < rest.length; i++) if (rest[i].ch === rest[i - 1].ch) { const j = rest.findIndex((q, k) => k > i && q.ch !== rest[i].ch); if (j > 0) [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  Q = [...meets, ...rest];
+  if (!Q.length) { home(); return; }
+  $('#bar').style.visibility = 'visible';
+  next();
+}
+function progress() { $('#barfill').style.width = (100 * qi / Q.length) + '%'; }
+function next() {
+  progress();
+  if (qi >= Q.length) return finish();
+  const q = Q[qi];
+  if (q.type === 'meet') meet(q); else quiz(q);
+}
+
+/* ---------- meet a new letter ---------- */
+function meet(q) {
+  const l = BY[q.ch]; const al = alikes(q.ch);
+  paint(`<div class="kicker">New letter</div>
+    <div class="meet">
+      <div class="glyph"><div class="big">${l.ch}</div></div>
+      <div><b class="nm">${l.name}</b><span class="ar2 arn">${l.ar}</span>${l.heavy ? '<span class="tag">heavy</span>' : ''}${l.throat ? '<span class="tag">throat</span>' : ''}
+        <div class="muted" style="margin-top:4px">say its name: “${l.say}”</div>
+        <div class="snd">${esc(l.sound)}</div>
+        <div class="tip">${esc(l.tip)}</div>
+        ${al.length ? `<div class="alike">Don’t mix it up with ${al.map(c => `<span class="ar">${c}</span>`).join(' ')}</div>` : ''}
+      </div></div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="ok">Got it <kbd>↵</kbd></button></div>`);
+  if (!S.cards[q.ch]) { S.cards[q.ch] = { box: 1, due: Date.now() + INTERVAL[1] * MIN, right: 0, wrong: 0 }; S.intro.push(q.ch); save(); }
+  $('#ok').onclick = () => { qi++; next(); };
+  foot('Look at the shape, read the sound, say the name out loud.');
+}
+
+/* ---------- a question ---------- */
+let current = null;
+function distractors(ch, n) {
+  const met = S.intro.filter(c => c !== ch);
+  const al = shuffle(alikes(ch).filter(c => met.includes(c)));      // only look-alikes you've already met
+  let out = al.slice(0, box(ch) >= 2 ? 2 : 1);
+  for (const c of shuffle(met)) { if (out.length >= n) break; if (!out.includes(c)) out.push(c); }
+  // early on, fill with the next letters in the book's order rather than random ones
+  for (const l of LETTERS) { if (out.length >= n) break; if (l.ch !== ch && !out.includes(l.ch)) out.push(l.ch); }
+  return out.slice(0, n);
+}
+function quiz(q) {
+  const l = BY[q.ch]; const b = box(q.ch);
+  const types = b <= 1 ? ['l2name', 'l2sound', 'l2name'] : ['l2name', 'l2sound', 'name2l', 'sound2l', 'l2sound'];
+  const t = pick(types);
+  const nOpts = 4;
+  const wrong = distractors(q.ch, nOpts - 1);
+  const choices = shuffle([q.ch, ...wrong]);
+  let prompt, show, opts, letterOpts = false;
+  if (t === 'l2name') { prompt = 'What is this letter called?'; show = `<div class="big">${l.ch}</div>`; opts = choices.map(c => `${BY[c].name}<small>“${BY[c].say}”</small>`); }
+  if (t === 'l2sound') { prompt = 'What sound does it make?'; show = `<div class="big">${l.ch}</div>`; opts = choices.map(c => esc(BY[c].sound)); }
+  if (t === 'name2l') { prompt = 'Which one is…'; show = `<div class="txt">${l.name}<small>“${l.say}”</small></div>`; opts = choices; letterOpts = true; }
+  if (t === 'sound2l') { prompt = 'Which letter makes this sound?'; show = `<div class="txt" style="font-size:26px;max-width:480px">${esc(l.sound)}</div>`; opts = choices; letterOpts = true; }
+  current = { q, choices, answered: false };
+  paint(`<div class="prompt">${prompt}</div>
+    <div class="showbox">${show}</div>
+    <div id="after"></div>
+    <div class="opts ${letterOpts ? 'letters' : 'texts'}">${opts.map((o, i) => `<button class="opt ${letterOpts ? 'letter' : ''}" data-i="${i}"><span class="k">${i + 1}</span>${o}</button>`).join('')}</div>`);
+  card.querySelectorAll('.opt').forEach(btn => btn.onclick = () => answer(+btn.dataset.i));
+  foot('Press <kbd>1</kbd>–<kbd>4</kbd> to answer');
+}
+function answer(i) {
+  if (!current || current.answered) return;
+  current.answered = true;
+  const { q, choices } = current; const l = BY[q.ch];
+  const ok = choices[i] === q.ch;
+  const btns = [...card.querySelectorAll('.opt')];
+  btns.forEach((b, k) => { b.disabled = true; if (choices[k] === q.ch) b.classList.add('right'); else if (k !== i) b.classList.add('dim'); });
+  card.querySelector('.showbox').style.display = 'none';
+  const c = S.cards[q.ch];
+  if (!retried.has(qi)) asked++;
+  if (ok) {
+    if (!retried.has(qi)) score++;
+    haptic('ok');
+    c.right++;
+    // only scheduled reviews move a letter up a box (extra practice doesn't rush it)
+    if (q.counts || (q.isNew && c.box === 1 && Q.slice(0, qi).some(x => x.ch === q.ch && x.type === 'quiz'))) {
+      c.box = Math.min(INTERVAL.length - 1, c.box + 1); c.due = Date.now() + INTERVAL[c.box] * MIN;
+    }
+    save();
+    card.classList.remove('in', 'shake'); void card.offsetWidth; card.classList.add('flash-ok');
+    $('#after').innerHTML = `<div class="reveal"><div class="big" style="color:var(--ok)">${l.ch}</div><div><b class="nm">${l.name}</b><div class="snd">${esc(l.sound)}</div></div></div>`;
+    setTimeout(() => { qi++; next(); }, 1300);
+  } else {
+    btns[i].classList.add('wrong');
+    haptic('bad');
+    c.wrong++; c.box = 1; c.due = Date.now() + INTERVAL[1] * MIN; save();
+    card.classList.remove('in', 'flash-ok'); void card.offsetWidth; card.classList.add('shake');
+    const picked = BY[choices[i]];
+    $('#after').innerHTML = `<div class="reveal bad"><div class="big">${l.ch}</div><div><b class="nm">${l.name} <span class="ar2 muted" style="font-size:20px">${l.ar}</span></b><div class="snd">${esc(l.sound)}</div><div class="tip">${esc(l.tip)} You picked <span class="ar" style="font-size:22px">${picked.ch}</span> ${picked.name}.</div></div></div>
+      <div class="row" style="margin-top:10px"><button class="btn" id="cont">Continue <kbd>↵</kbd></button></div>`;
+    // ask it again near the end of this burst
+    if (!retried.has(qi)) { Q.push({ ...q, counts: false }); retried.add(Q.length - 1); }
+    $('#cont').onclick = () => { qi++; next(); };
+    foot('It will come back again before this burst ends.');
+  }
+}
+
+/* ---------- end of burst ---------- */
+function finish() {
+  mode = 'done';
+  const k = dayKey(); S.days[k] = (S.days[k] || 0) + 1; save(); topStat();
+  progress();
+  const pct = asked ? Math.round(100 * score / asked) : 100;
+  const msg = pct === 100 ? 'Perfect burst!' : pct >= 80 ? 'Great work.' : pct >= 50 ? 'Good — the misses will come back soon.' : 'Tricky one. Those letters will come round again shortly.';
+  const nx = whenNext();
+  paint(`<div class="center" style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center">
+    <div class="kicker">Burst complete</div>
+    <div style="font-family:var(--serif);font-size:72px;color:var(--red);line-height:1;margin:8px 0">${score}/${asked}</div>
+    <h1 style="font-size:28px">${msg}</h1>
+    ${newThisBurst.length ? `<p class="soft" style="margin:4px 0">New today: ${newThisBurst.map(c => `<span class="ar" style="font-size:28px;color:var(--red)">${c}</span> ${BY[c].name}`).join(' · ')}</p>` : ''}
+    <p class="soft" style="margin:6px 0 0">${S.days[k]} burst${S.days[k] > 1 ? 's' : ''} today · 🔥 ${streak()}-day streak · ${learntCount()}/29 memorised</p>
+    <p class="muted" style="margin-top:4px">${nx && nx !== 'now' ? `Next review ${nx}. ${IOS ? 'Swipe the app away and come back then.' : 'Close the app and come back then.'}` : 'Come back in a little while for your next burst.'}</p>
+    <div class="row" style="margin-top:18px">
+      ${CAN_QUIT ? '<button class="btn" id="quit">Close app <kbd>↵</kbd></button>' : ''}
+      <button class="btn ${CAN_QUIT ? 'ghost' : ''}" id="again">Another burst <kbd>${CAN_QUIT ? 'Space' : '↵'}</kbd></button>
+      <button class="btn ghost" id="home">Home <kbd>Esc</kbd></button>
+    </div></div>`);
+  $('#bar').style.visibility = 'hidden';
+  if ($('#quit')) $('#quit').onclick = quit;
+  $('#again').onclick = startBurst; $('#home').onclick = home;
+  foot('');
+}
+function quit() { save(); if (bridge) bridge.postMessage({ action: 'quit' }); }
+
+/* ---------- keyboard ---------- */
+document.addEventListener('keydown', e => {
+  const k = e.key;
+  if (mode === 'home') { if (k === 'Enter') startBurst(); if (k === 'a' || k === 'A') reference(); return; }
+  if (mode === 'ref') { if (k === 'Escape') home(); return; }
+  if (mode === 'done') { if (k === 'Enter') (CAN_QUIT ? quit : startBurst)(); if (k === ' ') { e.preventDefault(); startBurst(); } if (k === 'Escape') home(); return; }
+  if (mode === 'burst') {
+    if (k === 'Escape') { home(); return; }
+    const q = Q[qi];
+    if (q && q.type === 'meet' && (k === 'Enter' || k === ' ')) { e.preventDefault(); $('#ok').click(); return; }
+    if (current && !current.answered && /^[1-4]$/.test(k)) { answer(+k - 1); return; }
+    if (k === 'Enter' && $('#cont')) $('#cont').click();
+  }
+});
+
+home();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+window.__LD = { S, startBurst, home };
+})();
+</script>
+</body>
+</html>
