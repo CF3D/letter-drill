@@ -1,7 +1,8 @@
 # Letter Drill
 
-Memorise the 29 Arabic letters in short daily bursts. It follows the letter order of
-*Towards Reading the Qur'an, Part One*. Works offline and installs to your phone's home screen.
+A quick, one-shot drill for the 29 Arabic letters (from *Towards Reading the Qur'an, Part One*).
+Open it and you get a random set of 10 letters to work through. Refresh, reopen or tap **New set** for a fresh one.
+Nothing is tracked or saved. Works offline and installs to your phone's home screen.
 
 ## Put it on GitHub Pages
 
@@ -18,7 +19,6 @@ Memorise the 29 Arabic letters in short daily bursts. It follows the letter orde
 
 Open the link in **Safari**, tap **Share › Add to Home Screen › Add**.
 It opens full-screen from its own icon and works without internet.
-Your progress is saved on the phone. (Progress isn't shared between the phone and a computer.)
 
 ## Updating later
 

@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0d4f60">
 <meta name="apple-mobile-web-app-title" content="Letter Drill">
-<meta name="description" content="Memorise the Arabic letters in short daily bursts.">
+<meta name="description" content="A quick random set of Arabic letters to memorise — refresh for a new one.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -172,19 +172,34 @@ body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 }
 @media (max-height: 640px) { .meet .glyph { height: 170px; } .meet .glyph .big { font-size: 110px; } .opt { min-height: 54px; } }
 </style>
+<style>
+.top .right { display: flex; align-items: center; gap: 8px; }
+.count { font-size: 13px; font-weight: 800; color: var(--on-bg-soft); }
+.count b { color: var(--on-bg); }
+.newset { background: rgba(255,255,255,.12); border: 0; color: var(--on-bg); font-size: 13px; font-weight: 800; padding: 6px 12px; border-radius: 999px; }
+.newset:hover { background: rgba(255,255,255,.2); }
+.sum { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; overflow-y: auto; min-height: 0; flex: 1; align-content: start; margin: 12px 0 14px; }
+.sc { background: var(--card2); border: 1.5px solid var(--line); border-radius: 14px; padding: 2px 8px 8px; text-align: center; }
+.sc .ar { font-size: 38px; line-height: 1.6; color: var(--ink); display: block; }
+.sc b { font-family: var(--serif); font-size: 17px; font-weight: 600; display: block; line-height: 1.1; }
+.sc span { font-size: 11.5px; color: var(--soft); line-height: 1.25; display: block; margin-top: 2px; }
+.sc.miss { border-color: var(--red); background: var(--red-soft); }
+.sc.miss .ar { color: var(--red); }
+.score { font-family: var(--serif); font-size: 64px; color: var(--red); line-height: 1; }
+@media (max-width: 560px) { .sum { grid-template-columns: repeat(3, 1fr); } .sc span { display: none; } .score { font-size: 54px; } }
+</style>
 </head>
 <body>
 <div class="app">
-  <div class="top"><div class="brand"><span class="ar">ح ر و ف</span>Letter Drill</div><div class="stat" id="topstat"></div></div>
-  <div class="bar" id="bar" style="visibility:hidden"><i id="barfill"></i></div>
+  <div class="top"><div class="brand"><span class="ar">ح ر و ف</span>Letter Drill</div>
+    <div class="right"><span class="count" id="count"></span><button class="newset" id="newset" title="Start a new random set (R)">↻ New set</button></div></div>
+  <div class="bar" id="bar"><i id="barfill"></i></div>
   <div class="card" id="card"></div>
   <div class="foot" id="foot"></div>
 </div>
 <script>
 (() => {
 'use strict';
-
-/* ---------- the 29 letters, in the order the PDF teaches them ---------- */
 const LETTERS = [
   // Lesson 2 — lips
   { ch:'ب', name:'Bā',  say:'Baa',  ar:'بَاء', sound:'b — as in “bat”', tip:'One dot underneath.' },
@@ -227,41 +242,10 @@ const LETTERS = [
 ];
 const BY = Object.fromEntries(LETTERS.map(l => [l.ch, l]));
 const ALPHA = 'ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن و ه ء ي'.split(' ');
-/* look-alike families — used as tricky wrong answers */
 const FAMILIES = [['ب','ت','ث','ن','ي'],['ج','ح','خ'],['د','ذ'],['ر','ز'],['س','ش'],['ص','ض'],['ط','ظ'],['ع','غ'],['ف','ق'],['ك','ل'],['ا','ء'],['ه','و','م']];
 const alikes = ch => (FAMILIES.find(f => f.includes(ch)) || []).filter(c => c !== ch);
+const SET_SIZE = 10;
 
-/* ---------- spaced-repetition settings ---------- */
-const MIN = 60 * 1000;
-const INTERVAL = [0, 10, 60, 240, 1440, 4320, 10080, 20160];   // minutes after reaching box n
-const LEARNT_BOX = 4;            // box 4+ = memorised
-const BURST = 10;                // questions per burst
-
-/* ---------- state & saving ---------- */
-const NATIVE = window.__NATIVE__ || null;
-const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.native;
-const IOS = !!(NATIVE && NATIVE.platform === 'ios');
-const CAN_QUIT = !!bridge && !IOS;
-const haptic = kind => { if (bridge && IOS) bridge.postMessage({ action: 'haptic', kind }); };
-let S = { cards: {}, intro: [], days: {} };
-try { const raw = (NATIVE && NATIVE.state) || localStorage.getItem('letter-drill'); if (raw) Object.assign(S, JSON.parse(raw)); } catch (e) {}
-function save() {
-  const s = JSON.stringify(S);
-  if (bridge) bridge.postMessage({ action: 'save', state: s });
-  try { localStorage.setItem('letter-drill', s); } catch (e) {}
-}
-const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-function streak() {
-  let n = 0; const d = new Date();
-  if (!S.days[dayKey(d)]) d.setDate(d.getDate() - 1);   // today not done yet doesn't break the streak
-  while (S.days[dayKey(d)]) { n++; d.setDate(d.getDate() - 1); }
-  return n;
-}
-const box = ch => (S.cards[ch] ? S.cards[ch].box : 0);
-const isDue = ch => S.cards[ch] && S.cards[ch].due <= Date.now();
-const learntCount = () => S.intro.filter(c => box(c) >= LEARNT_BOX).length;
-
-/* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -269,152 +253,49 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '
 const card = $('#card');
 function paint(html, cls = '') { card.className = 'card in ' + cls; card.innerHTML = html; }
 function foot(html) { const f = $('#foot'); f.innerHTML = html; f.classList.toggle('keys', /<kbd>/.test(html)); }
-function topStat() {
-  $('#topstat').innerHTML = `<span>🔥 <b>${streak()}</b> day${streak() === 1 ? '' : 's'}</span><span><b>${learntCount()}</b>/29 learnt</span>`;
-}
-function whenNext() {
-  const dues = S.intro.map(c => S.cards[c].due).filter(Boolean);
-  if (!dues.length) return null;
-  const m = Math.min(...dues) - Date.now();
-  if (m <= 0) return 'now';
-  const mins = Math.round(m / MIN);
-  if (mins < 60) return `in ${Math.max(1, mins)} min`;
-  const h = Math.round(mins / 60);
-  return h < 24 ? `in about ${h} hour${h > 1 ? 's' : ''}` : `in ${Math.round(h / 24)} day${h >= 36 ? 's' : ''}`;
-}
 
-/* ---------- home screen ---------- */
-let mode = 'home';
-function home() {
-  mode = 'home'; $('#bar').style.visibility = 'hidden'; topStat();
-  const today = S.days[dayKey()] || 0;
-  const due = S.intro.filter(isDue).length;
-  const fresh = S.intro.length === 0;
-  const allIntro = S.intro.length >= LETTERS.length;
-  let msg;
-  if (fresh) msg = 'Each burst is about 10 quick questions — a minute or two. Do a burst, close the app, and come back a few times through the day. You’ll start with the four letters the book begins with.';
-  else if (due) msg = `<b>${due} letter${due > 1 ? 's are' : ' is'} ready for review.</b> ${!allIntro ? 'New letters are added once the ones you have are settling in.' : ''}`;
-  else msg = `Nothing is due yet — next review ${whenNext()}. You can still do an extra burst to practise${allIntro ? '' : ' or meet new letters'}.`;
-  paint(`<div class="home">
-    <div class="kicker">${fresh ? 'Welcome' : today ? 'Keep it going' : 'Today'}</div>
-    <h1>${fresh ? 'Memorise the Arabic letters' : today ? `${today} burst${today > 1 ? 's' : ''} done today` : 'Ready for a quick burst?'}</h1>
-    <p class="soft" style="margin:0">${msg}</p>
-    <div class="today">
-      <div class="tile"><b>${today}</b><span>bursts today</span></div>
-      <div class="tile"><b>${S.intro.length}</b><span>letters met</span></div>
-      <div class="tile"><b>${learntCount()}</b><span>memorised</span></div>
-    </div>
-    <div class="grow" style="overflow:auto">
-      <div class="grid29">${ALPHA.map(c => { const b = box(c); const lvl = !S.cards[c] ? 0 : b >= LEARNT_BOX ? 4 : Math.min(3, b);
-        return `<div class="cell ${isDue(c) ? 'due' : ''}" data-lvl="${lvl}" title="${BY[c].name}">${c}</div>`; }).join('')}</div>
-      <div class="legend"><span><i style="border-color:var(--line);border-style:dashed"></i>not met yet</span><span><i style="border-color:#e9b8b0"></i>new</span><span><i style="border-color:#e8c98c"></i>getting there</span><span><i style="border-color:#b6d4a8"></i>nearly</span><span><i style="border-color:var(--ok);background:var(--ok-soft)"></i>memorised</span><span><i style="border-color:var(--red);background:var(--red);border-radius:50%"></i>due</span></div>
-    </div>
-    <div class="row" style="margin-top:14px">
-      <button class="btn" id="go">Start burst <kbd>↵</kbd></button>
-      <button class="btn ghost" id="ref">All letters <kbd>A</kbd></button>
-    </div></div>`);
-  $('#go').onclick = startBurst; $('#ref').onclick = reference;
-  foot('Short bursts, several times a day, beat one long session.');
-}
-
-/* ---------- reference list ---------- */
-function reference() {
-  mode = 'ref';
-  paint(`<div style="display:flex;justify-content:space-between;align-items:center"><div><div class="kicker">Reference</div><h1 style="margin-bottom:0">All 29 letters</h1></div><button class="btn ghost" id="back">Back <kbd>Esc</kbd></button></div>
-    <p class="muted" style="margin:4px 0 0">In alphabet order. Faded letters haven’t come up in your bursts yet.</p>
-    <div class="ref">${ALPHA.map(c => { const l = BY[c]; return `<div class="refrow ${S.cards[c] ? '' : 'locked'}"><div class="ar">${c}</div>
-      <div><b>${l.name}</b> <span class="ar2 muted" style="font-size:17px">${l.ar}</span> <span class="muted">· say “${l.say}”</span>${l.heavy ? '<span class="tag">heavy</span>' : ''}<div class="s">${esc(l.sound)}</div><div class="t">${esc(l.tip)}</div></div></div>`; }).join('')}</div>`);
-  $('#back').onclick = home;
-  foot('');
-}
-
-/* ---------- building a burst ---------- */
-let Q = [], qi = 0, score = 0, asked = 0, retried = new Set(), newThisBurst = [];
-function startBurst() {
-  mode = 'burst'; Q = []; qi = 0; score = 0; asked = 0; retried = new Set(); newThisBurst = [];
-  const now = Date.now();
-  // 1) introduce new letters when the current ones are settling in
-  const shaky = S.intro.filter(c => box(c) <= 2).length;
-  const remaining = LETTERS.filter(l => !S.intro.includes(l.ch));
-  let nNew = S.intro.length === 0 ? 4 : shaky < 4 ? 2 : shaky < 6 ? 1 : 0;
-  nNew = Math.min(nNew, remaining.length);
-  newThisBurst = remaining.slice(0, nNew).map(l => l.ch);
-  // 2) due letters first, most overdue first
-  const due = S.intro.filter(isDue).sort((a, b) => S.cards[a].due - S.cards[b].due);
-  // 3) build the queue
-  newThisBurst.forEach(c => { Q.push({ type: 'meet', ch: c }); });
-  newThisBurst.forEach(c => Q.push({ type: 'quiz', ch: c, isNew: true }));
-  due.forEach(c => { if (Q.filter(q => q.type === 'quiz').length < BURST) Q.push({ type: 'quiz', ch: c, counts: true }); });
-  // 4) top up with the weakest letters (extra practice)
-  const extra = shuffle(S.intro.filter(c => !due.includes(c))).sort((a, b) => box(a) - box(b));
-  for (const c of extra) { if (Q.filter(q => q.type === 'quiz').length >= BURST) break; Q.push({ type: 'quiz', ch: c }); }
-  // new letters get a second look later in the burst
-  newThisBurst.forEach(c => Q.push({ type: 'quiz', ch: c, isNew: true }));
-  // keep meets first, shuffle the rest but avoid the same letter twice in a row
-  const meets = Q.filter(q => q.type === 'meet');
-  let rest = shuffle(Q.filter(q => q.type === 'quiz'));
-  for (let i = 1; i < rest.length; i++) if (rest[i].ch === rest[i - 1].ch) { const j = rest.findIndex((q, k) => k > i && q.ch !== rest[i].ch); if (j > 0) [rest[i], rest[j]] = [rest[j], rest[i]]; }
-  Q = [...meets, ...rest];
-  if (!Q.length) { home(); return; }
+/* ---------- a set: random letters, no history ---------- */
+let mode = 'quiz', setLetters = [], Q = [], qi = 0, score = 0, missed = new Set(), current = null;
+function newSet(n = SET_SIZE) {
+  setLetters = shuffle(LETTERS).slice(0, n).map(l => l.ch);
+  Q = setLetters.map(ch => ({ ch, retry: false }));
+  qi = 0; score = 0; missed = new Set(); mode = 'quiz';
   $('#bar').style.visibility = 'visible';
   next();
 }
-function progress() { $('#barfill').style.width = (100 * qi / Q.length) + '%'; }
-function next() {
-  progress();
-  if (qi >= Q.length) return finish();
-  const q = Q[qi];
-  if (q.type === 'meet') meet(q); else quiz(q);
+function updateTop() {
+  const done = Math.min(qi, setLetters.length);
+  $('#count').innerHTML = mode === 'quiz' ? `<b>${Math.min(done + 1, setLetters.length)}</b> / ${setLetters.length}` : '';
+  $('#barfill').style.width = (100 * qi / Q.length) + '%';
 }
-
-/* ---------- meet a new letter ---------- */
-function meet(q) {
-  const l = BY[q.ch]; const al = alikes(q.ch);
-  paint(`<div class="kicker">New letter</div>
-    <div class="meet">
-      <div class="glyph"><div class="big">${l.ch}</div></div>
-      <div><b class="nm">${l.name}</b><span class="ar2 arn">${l.ar}</span>${l.heavy ? '<span class="tag">heavy</span>' : ''}${l.throat ? '<span class="tag">throat</span>' : ''}
-        <div class="muted" style="margin-top:4px">say its name: “${l.say}”</div>
-        <div class="snd">${esc(l.sound)}</div>
-        <div class="tip">${esc(l.tip)}</div>
-        ${al.length ? `<div class="alike">Don’t mix it up with ${al.map(c => `<span class="ar">${c}</span>`).join(' ')}</div>` : ''}
-      </div></div>
-    <div class="row" style="margin-top:12px"><button class="btn" id="ok">Got it <kbd>↵</kbd></button></div>`);
-  if (!S.cards[q.ch]) { S.cards[q.ch] = { box: 1, due: Date.now() + INTERVAL[1] * MIN, right: 0, wrong: 0 }; S.intro.push(q.ch); save(); }
-  $('#ok').onclick = () => { qi++; next(); };
-  foot('Look at the shape, read the sound, say the name out loud.');
+function next() {
+  updateTop();
+  if (qi >= Q.length) return finish();
+  quiz(Q[qi]);
 }
 
 /* ---------- a question ---------- */
-let current = null;
 function distractors(ch, n) {
-  const met = S.intro.filter(c => c !== ch);
-  const al = shuffle(alikes(ch).filter(c => met.includes(c)));      // only look-alikes you've already met
-  let out = al.slice(0, box(ch) >= 2 ? 2 : 1);
-  for (const c of shuffle(met)) { if (out.length >= n) break; if (!out.includes(c)) out.push(c); }
-  // early on, fill with the next letters in the book's order rather than random ones
-  for (const l of LETTERS) { if (out.length >= n) break; if (l.ch !== ch && !out.includes(l.ch)) out.push(l.ch); }
+  const out = shuffle(alikes(ch)).slice(0, Math.random() < .6 ? 2 : 1);   // a look-alike or two keeps it honest
+  for (const c of shuffle(ALPHA)) { if (out.length >= n) break; if (c !== ch && !out.includes(c)) out.push(c); }
   return out.slice(0, n);
 }
 function quiz(q) {
-  const l = BY[q.ch]; const b = box(q.ch);
-  const types = b <= 1 ? ['l2name', 'l2sound', 'l2name'] : ['l2name', 'l2sound', 'name2l', 'sound2l', 'l2sound'];
-  const t = pick(types);
-  const nOpts = 4;
-  const wrong = distractors(q.ch, nOpts - 1);
-  const choices = shuffle([q.ch, ...wrong]);
+  const l = BY[q.ch];
+  const t = pick(['l2name', 'l2sound', 'name2l', 'sound2l', 'l2name', 'l2sound']);
+  const choices = shuffle([q.ch, ...distractors(q.ch, 3)]);
   let prompt, show, opts, letterOpts = false;
-  if (t === 'l2name') { prompt = 'What is this letter called?'; show = `<div class="big">${l.ch}</div>`; opts = choices.map(c => `${BY[c].name}<small>“${BY[c].say}”</small>`); }
+  if (t === 'l2name')  { prompt = 'What is this letter called?'; show = `<div class="big">${l.ch}</div>`; opts = choices.map(c => `${BY[c].name}<small>“${BY[c].say}”</small>`); }
   if (t === 'l2sound') { prompt = 'What sound does it make?'; show = `<div class="big">${l.ch}</div>`; opts = choices.map(c => esc(BY[c].sound)); }
-  if (t === 'name2l') { prompt = 'Which one is…'; show = `<div class="txt">${l.name}<small>“${l.say}”</small></div>`; opts = choices; letterOpts = true; }
+  if (t === 'name2l')  { prompt = 'Which one is…'; show = `<div class="txt">${l.name}<small>“${l.say}”</small></div>`; opts = choices; letterOpts = true; }
   if (t === 'sound2l') { prompt = 'Which letter makes this sound?'; show = `<div class="txt" style="font-size:26px;max-width:480px">${esc(l.sound)}</div>`; opts = choices; letterOpts = true; }
   current = { q, choices, answered: false };
-  paint(`<div class="prompt">${prompt}</div>
+  paint(`<div class="prompt">${q.retry ? '<span class="kicker" style="display:block;margin-bottom:2px">Try again</span>' : ''}${prompt}</div>
     <div class="showbox">${show}</div>
     <div id="after"></div>
     <div class="opts ${letterOpts ? 'letters' : 'texts'}">${opts.map((o, i) => `<button class="opt ${letterOpts ? 'letter' : ''}" data-i="${i}"><span class="k">${i + 1}</span>${o}</button>`).join('')}</div>`);
   card.querySelectorAll('.opt').forEach(btn => btn.onclick = () => answer(+btn.dataset.i));
-  foot('Press <kbd>1</kbd>–<kbd>4</kbd> to answer');
+  foot('Press <kbd>1</kbd>–<kbd>4</kbd> to answer · <kbd>R</kbd> for a new set');
 }
 function answer(i) {
   if (!current || current.answered) return;
@@ -424,82 +305,71 @@ function answer(i) {
   const btns = [...card.querySelectorAll('.opt')];
   btns.forEach((b, k) => { b.disabled = true; if (choices[k] === q.ch) b.classList.add('right'); else if (k !== i) b.classList.add('dim'); });
   card.querySelector('.showbox').style.display = 'none';
-  const c = S.cards[q.ch];
-  if (!retried.has(qi)) asked++;
   if (ok) {
-    if (!retried.has(qi)) score++;
-    haptic('ok');
-    c.right++;
-    // only scheduled reviews move a letter up a box (extra practice doesn't rush it)
-    if (q.counts || (q.isNew && c.box === 1 && Q.slice(0, qi).some(x => x.ch === q.ch && x.type === 'quiz'))) {
-      c.box = Math.min(INTERVAL.length - 1, c.box + 1); c.due = Date.now() + INTERVAL[c.box] * MIN;
-    }
-    save();
+    if (!q.retry) score++;
     card.classList.remove('in', 'shake'); void card.offsetWidth; card.classList.add('flash-ok');
     $('#after').innerHTML = `<div class="reveal"><div class="big" style="color:var(--ok)">${l.ch}</div><div><b class="nm">${l.name}</b><div class="snd">${esc(l.sound)}</div></div></div>`;
-    setTimeout(() => { qi++; next(); }, 1300);
+    setTimeout(() => { qi++; next(); }, 1200);
   } else {
     btns[i].classList.add('wrong');
-    haptic('bad');
-    c.wrong++; c.box = 1; c.due = Date.now() + INTERVAL[1] * MIN; save();
+    missed.add(q.ch);
     card.classList.remove('in', 'flash-ok'); void card.offsetWidth; card.classList.add('shake');
     const picked = BY[choices[i]];
     $('#after').innerHTML = `<div class="reveal bad"><div class="big">${l.ch}</div><div><b class="nm">${l.name} <span class="ar2 muted" style="font-size:20px">${l.ar}</span></b><div class="snd">${esc(l.sound)}</div><div class="tip">${esc(l.tip)} You picked <span class="ar" style="font-size:22px">${picked.ch}</span> ${picked.name}.</div></div></div>
-      <div class="row" style="margin-top:10px"><button class="btn" id="cont">Continue <kbd>↵</kbd></button></div>`;
-    // ask it again near the end of this burst
-    if (!retried.has(qi)) { Q.push({ ...q, counts: false }); retried.add(Q.length - 1); }
+      <div class="row" style="margin-top:2px"><button class="btn" id="cont">Continue <kbd>↵</kbd></button></div>`;
+    if (!q.retry) Q.push({ ch: q.ch, retry: true });   // one more go at the end of the set
     $('#cont').onclick = () => { qi++; next(); };
-    foot('It will come back again before this burst ends.');
+    foot('It comes back once more at the end of this set.');
   }
 }
 
-/* ---------- end of burst ---------- */
+/* ---------- end of set ---------- */
 function finish() {
-  mode = 'done';
-  const k = dayKey(); S.days[k] = (S.days[k] || 0) + 1; save(); topStat();
-  progress();
-  const pct = asked ? Math.round(100 * score / asked) : 100;
-  const msg = pct === 100 ? 'Perfect burst!' : pct >= 80 ? 'Great work.' : pct >= 50 ? 'Good — the misses will come back soon.' : 'Tricky one. Those letters will come round again shortly.';
-  const nx = whenNext();
-  paint(`<div class="center" style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center">
-    <div class="kicker">Burst complete</div>
-    <div style="font-family:var(--serif);font-size:72px;color:var(--red);line-height:1;margin:8px 0">${score}/${asked}</div>
-    <h1 style="font-size:28px">${msg}</h1>
-    ${newThisBurst.length ? `<p class="soft" style="margin:4px 0">New today: ${newThisBurst.map(c => `<span class="ar" style="font-size:28px;color:var(--red)">${c}</span> ${BY[c].name}`).join(' · ')}</p>` : ''}
-    <p class="soft" style="margin:6px 0 0">${S.days[k]} burst${S.days[k] > 1 ? 's' : ''} today · 🔥 ${streak()}-day streak · ${learntCount()}/29 memorised</p>
-    <p class="muted" style="margin-top:4px">${nx && nx !== 'now' ? `Next review ${nx}. ${IOS ? 'Swipe the app away and come back then.' : 'Close the app and come back then.'}` : 'Come back in a little while for your next burst.'}</p>
-    <div class="row" style="margin-top:18px">
-      ${CAN_QUIT ? '<button class="btn" id="quit">Close app <kbd>↵</kbd></button>' : ''}
-      <button class="btn ${CAN_QUIT ? 'ghost' : ''}" id="again">Another burst <kbd>${CAN_QUIT ? 'Space' : '↵'}</kbd></button>
-      <button class="btn ghost" id="home">Home <kbd>Esc</kbd></button>
-    </div></div>`);
-  $('#bar').style.visibility = 'hidden';
-  if ($('#quit')) $('#quit').onclick = quit;
-  $('#again').onclick = startBurst; $('#home').onclick = home;
+  mode = 'done'; current = null; updateTop(); $('#bar').style.visibility = 'hidden';
+  const n = setLetters.length;
+  const msg = score === n ? 'Perfect set!' : score >= n * .8 ? 'Great work.' : score >= n * .5 ? 'Good going — keep at it.' : 'Tricky set. Look over them and try another.';
+  paint(`<div class="center"><div class="kicker">Set complete</div>
+      <div class="score" style="margin-top:8px">${score}/${n}</div>
+      <h1 style="font-size:24px;margin-top:6px">${msg}</h1>
+      <p class="muted" style="margin:0">${missed.size ? 'The ones in red caught you out — have a look before you go.' : 'Here’s the set you just did.'}</p></div>
+    <div class="sum">${setLetters.map(c => { const l = BY[c]; return `<div class="sc ${missed.has(c) ? 'miss' : ''}"><span class="ar">${c}</span><b>${l.name}</b><span>${esc(l.sound)}</span></div>`; }).join('')}</div>
+    <div class="row">
+      <button class="btn" id="again">New set <kbd>↵</kbd></button>
+      <button class="btn ghost" id="all">All 29 <kbd>A</kbd></button>
+      <button class="btn ghost" id="ref">Letter list <kbd>L</kbd></button>
+    </div>`);
+  $('#again').onclick = () => newSet(); $('#all').onclick = () => newSet(LETTERS.length); $('#ref').onclick = reference;
+  foot('Come back later for another quick set.');
+}
+
+/* ---------- reference list ---------- */
+function reference() {
+  mode = 'ref'; current = null; $('#bar').style.visibility = 'hidden'; $('#count').innerHTML = '';
+  paint(`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="kicker">Reference</div><h1 style="margin-bottom:0">All 29 letters</h1></div><button class="btn ghost" id="back">New set <kbd>↵</kbd></button></div>
+    <div class="ref">${ALPHA.map(c => { const l = BY[c]; return `<div class="refrow"><div class="ar">${c}</div>
+      <div><b>${l.name}</b> <span class="ar2 muted" style="font-size:17px">${l.ar}</span> <span class="muted">· say “${l.say}”</span>${l.heavy ? '<span class="tag">heavy</span>' : ''}<div class="s">${esc(l.sound)}</div><div class="t">${esc(l.tip)}</div></div></div>`; }).join('')}</div>`);
+  $('#back').onclick = () => newSet();
   foot('');
 }
-function quit() { save(); if (bridge) bridge.postMessage({ action: 'quit' }); }
 
-/* ---------- keyboard ---------- */
+/* ---------- keys ---------- */
+$('#newset').onclick = () => newSet();
 document.addEventListener('keydown', e => {
   const k = e.key;
-  if (mode === 'home') { if (k === 'Enter') startBurst(); if (k === 'a' || k === 'A') reference(); return; }
-  if (mode === 'ref') { if (k === 'Escape') home(); return; }
-  if (mode === 'done') { if (k === 'Enter') (CAN_QUIT ? quit : startBurst)(); if (k === ' ') { e.preventDefault(); startBurst(); } if (k === 'Escape') home(); return; }
-  if (mode === 'burst') {
-    if (k === 'Escape') { home(); return; }
-    const q = Q[qi];
-    if (q && q.type === 'meet' && (k === 'Enter' || k === ' ')) { e.preventDefault(); $('#ok').click(); return; }
-    if (current && !current.answered && /^[1-4]$/.test(k)) { answer(+k - 1); return; }
-    if (k === 'Enter' && $('#cont')) $('#cont').click();
-  }
+  if (k === 'r' || k === 'R') { newSet(); return; }
+  if (mode === 'quiz') {
+    if (current && !current.answered && /^[1-4]$/.test(k)) answer(+k - 1);
+    else if (k === 'Enter' && $('#cont')) $('#cont').click();
+  } else if (mode === 'done') {
+    if (k === 'Enter') newSet(); if (k === 'a' || k === 'A') newSet(LETTERS.length); if (k === 'l' || k === 'L') reference();
+  } else if (mode === 'ref' && (k === 'Enter' || k === 'Escape')) newSet();
 });
 
-home();
+newSet();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
-window.__LD = { S, startBurst, home };
+window.__LD = { newSet };
 })();
 </script>
 </body>

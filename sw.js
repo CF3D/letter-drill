@@ -1,6 +1,6 @@
 // Offline support: keeps the whole app on the device after the first visit.
 // Bump VERSION whenever you change a file so phones pick up the update.
-const VERSION = 'letter-drill-v1';
+const VERSION = 'letter-drill-v2';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './fonts/AmiriQuran.woff', './fonts/Amiri.woff', './fonts/EBGaramond.woff', './fonts/NunitoSans.woff',
